@@ -1,15 +1,19 @@
 use std::sync::Mutex;
-use xed_sys::{xed_decoded_inst_get_iclass, xed_decoded_inst_inst, xed_decoded_inst_get_unsigned_immediate, xed_decoded_inst_get_signed_immediate, xed_decoded_inst_get_second_immediate, xed_inst_iform_enum};
+use xed_sys::{
+    xed_decoded_inst_get_iclass, xed_decoded_inst_get_second_immediate,
+    xed_decoded_inst_get_signed_immediate, xed_decoded_inst_get_unsigned_immediate,
+    xed_decoded_inst_inst, xed_inst_iform_enum,
+};
 
 mod iclass;
-mod reg;
-mod operand_name;
 mod iform;
+mod operand_name;
+mod reg;
 
-pub use iform::XedIForm;
 pub use iclass::XedIClass;
-pub use reg::XedReg;
+pub use iform::XedIForm;
 pub use operand_name::OperandName;
+pub use reg::XedReg;
 
 #[macro_export]
 macro_rules! enum_impl {
@@ -57,12 +61,11 @@ impl std::fmt::Display for XedError {
     }
 }
 
-impl std::error::Error for XedError {
-}
+impl std::error::Error for XedError {}
 
 #[non_exhaustive]
 pub enum MachineMode {
-    Long64
+    Long64,
 }
 
 impl MachineMode {
@@ -111,9 +114,17 @@ impl Xed {
         let mut decoded = ::std::mem::MaybeUninit::<xed_sys::xed_decoded_inst_t>::uninit();
         unsafe {
             xed_sys::xed_decoded_inst_zero(decoded.as_mut_ptr());
-            xed_sys::xed_decoded_inst_set_mode(decoded.as_mut_ptr(), self.mode.to_xed(), self.address_width.to_xed());
+            xed_sys::xed_decoded_inst_set_mode(
+                decoded.as_mut_ptr(),
+                self.mode.to_xed(),
+                self.address_width.to_xed(),
+            );
 
-            let xed_error: xed_sys::xed_error_enum_t = xed_sys::xed_decode(decoded.as_mut_ptr(), instr.as_ptr(), instr.len().try_into().unwrap());
+            let xed_error: xed_sys::xed_error_enum_t = xed_sys::xed_decode(
+                decoded.as_mut_ptr(),
+                instr.as_ptr(),
+                instr.len().try_into().unwrap(),
+            );
             if xed_error == xed_sys::XED_ERROR_NONE {
                 let decoded = decoded.assume_init();
                 Ok(DecodedInstr(decoded))
@@ -136,9 +147,7 @@ impl DecodedInstr {
     }
 
     pub fn iclass(&self) -> XedIClass {
-        let iclass = unsafe {
-            xed_decoded_inst_get_iclass(self.as_ptr())
-        };
+        let iclass = unsafe { xed_decoded_inst_get_iclass(self.as_ptr()) };
 
         XedIClass::from_u32(iclass).unwrap()
     }
@@ -157,9 +166,7 @@ impl DecodedInstr {
     }
 
     fn as_inst(&self) -> *const xed_sys::xed_inst_s {
-        unsafe {
-            xed_decoded_inst_inst(self.as_ptr())
-        }
+        unsafe { xed_decoded_inst_inst(self.as_ptr()) }
     }
 }
 
@@ -168,9 +175,9 @@ pub struct Operands<'a>(&'a DecodedInstr);
 impl<'a> Operands<'a> {
     #[must_use]
     pub fn len(&self) -> usize {
-        unsafe {
-            xed_sys::xed_decoded_inst_noperands(self.0.as_ptr())
-        }.try_into().unwrap()
+        unsafe { xed_sys::xed_decoded_inst_noperands(self.0.as_ptr()) }
+            .try_into()
+            .unwrap()
     }
 
     #[must_use]
@@ -180,9 +187,7 @@ impl<'a> Operands<'a> {
 
     pub fn get(&self, index: usize) -> Option<Operand<'a>> {
         let index = index.try_into().unwrap();
-        let operand = unsafe {
-            xed_sys::xed_inst_operand(self.0.as_inst(), index)
-        };
+        let operand = unsafe { xed_sys::xed_inst_operand(self.0.as_inst(), index) };
 
         Some(Operand {
             source: self.0,
@@ -200,9 +205,7 @@ pub struct Operand<'a> {
 
 impl<'a> Operand<'a> {
     fn operand_name(&self) -> xed_sys::xed_operand_enum_t {
-        unsafe {
-            xed_sys::xed_operand_name(self.operand)
-        }
+        unsafe { xed_sys::xed_operand_name(self.operand) }
     }
 
     pub fn name(&self) -> OperandName {
@@ -211,14 +214,20 @@ impl<'a> Operand<'a> {
 
     pub fn operand_size_bits(&self) -> usize {
         unsafe {
-            xed_sys::xed_decoded_inst_operand_length_bits(self.source.as_ptr(), self.index).try_into().unwrap()
+            xed_sys::xed_decoded_inst_operand_length_bits(self.source.as_ptr(), self.index)
+                .try_into()
+                .unwrap()
         }
     }
 
     pub fn reg(&self) -> Option<XedReg> {
         if self.is_reg() {
             Some(unsafe {
-                XedReg::from_u32(xed_sys::xed_decoded_inst_get_reg(self.source.as_ptr(), self.operand_name())).unwrap()
+                XedReg::from_u32(xed_sys::xed_decoded_inst_get_reg(
+                    self.source.as_ptr(),
+                    self.operand_name(),
+                ))
+                .unwrap()
             })
         } else {
             None
@@ -226,9 +235,7 @@ impl<'a> Operand<'a> {
     }
 
     pub fn is_reg(&self) -> bool {
-        unsafe {
-            xed_sys::xed_operand_is_register(self.operand_name()) != 0
-        }
+        unsafe { xed_sys::xed_operand_is_register(self.operand_name()) != 0 }
     }
 
     pub fn is_imm(&self) -> bool {
@@ -251,9 +258,7 @@ impl<'a> Operand<'a> {
     }
 
     pub fn is_memory_addressing_register(&self) -> bool {
-        unsafe {
-            xed_sys::xed_operand_is_memory_addressing_register(self.operand_name()) != 0
-        }
+        unsafe { xed_sys::xed_operand_is_memory_addressing_register(self.operand_name()) != 0 }
     }
 }
 
@@ -262,9 +267,9 @@ pub struct MemoryAccesses<'a>(&'a DecodedInstr);
 impl<'a> MemoryAccesses<'a> {
     #[must_use]
     pub fn len(&self) -> usize {
-        unsafe {
-            xed_sys::xed_decoded_inst_number_of_memory_operands(self.0.as_ptr())
-        }.try_into().unwrap()
+        unsafe { xed_sys::xed_decoded_inst_number_of_memory_operands(self.0.as_ptr()) }
+            .try_into()
+            .unwrap()
     }
 
     #[must_use]
@@ -297,8 +302,14 @@ impl std::fmt::Debug for MemoryAccess<'_> {
             .field("index_reg", &self.index_reg())
             .field("scale", &self.scale())
             .field("memory_displacement", &self.memory_displacement())
-            .field("memory_displacement_width", &self.memory_displacement_width())
-            .field("memory_displacement_width_bits", &self.memory_displacement_width_bits())
+            .field(
+                "memory_displacement_width",
+                &self.memory_displacement_width(),
+            )
+            .field(
+                "memory_displacement_width_bits",
+                &self.memory_displacement_width_bits(),
+            )
             .field("is_read", &self.is_read())
             .field("is_written", &self.is_written())
             .field("is_written_only", &self.is_written_only())
@@ -317,20 +328,24 @@ impl MemoryAccess<'_> {
 
     pub fn segment_reg(&self) -> Option<XedReg> {
         unsafe {
-            Self::return_reg(xed_sys::xed_decoded_inst_get_seg_reg(self.source.as_ptr(), self.index))
+            Self::return_reg(xed_sys::xed_decoded_inst_get_seg_reg(
+                self.source.as_ptr(),
+                self.index,
+            ))
         }
     }
 
     pub fn base_reg(&self) -> Option<XedReg> {
         unsafe {
-            Self::return_reg(xed_sys::xed_decoded_inst_get_base_reg(self.source.as_ptr(), self.index))
+            Self::return_reg(xed_sys::xed_decoded_inst_get_base_reg(
+                self.source.as_ptr(),
+                self.index,
+            ))
         }
     }
 
     pub fn scale(&self) -> u32 {
-        unsafe {
-            xed_sys::xed_decoded_inst_get_scale(self.source.as_ptr(), self.index)
-        }
+        unsafe { xed_sys::xed_decoded_inst_get_scale(self.source.as_ptr(), self.index) }
     }
 
     pub fn memory_displacement(&self) -> i64 {
@@ -341,50 +356,52 @@ impl MemoryAccess<'_> {
 
     pub fn memory_displacement_width(&self) -> u32 {
         unsafe {
-            xed_sys::xed_decoded_inst_get_memory_displacement_width(self.source.as_ptr(), self.index)
+            xed_sys::xed_decoded_inst_get_memory_displacement_width(
+                self.source.as_ptr(),
+                self.index,
+            )
         }
     }
 
     pub fn memory_displacement_width_bits(&self) -> u32 {
         unsafe {
-            xed_sys::xed_decoded_inst_get_memory_displacement_width_bits(self.source.as_ptr(), self.index)
+            xed_sys::xed_decoded_inst_get_memory_displacement_width_bits(
+                self.source.as_ptr(),
+                self.index,
+            )
         }
     }
 
     pub fn is_read(&self) -> bool {
-        unsafe {
-            xed_sys::xed_decoded_inst_mem_read(self.source.as_ptr(), self.index) != 0
-        }
+        unsafe { xed_sys::xed_decoded_inst_mem_read(self.source.as_ptr(), self.index) != 0 }
     }
 
     pub fn is_written(&self) -> bool {
-        unsafe {
-            xed_sys::xed_decoded_inst_mem_written(self.source.as_ptr(), self.index) != 0
-        }
+        unsafe { xed_sys::xed_decoded_inst_mem_written(self.source.as_ptr(), self.index) != 0 }
     }
 
     pub fn is_written_only(&self) -> bool {
-        unsafe {
-            xed_sys::xed_decoded_inst_mem_written_only(self.source.as_ptr(), self.index) != 0
-        }
+        unsafe { xed_sys::xed_decoded_inst_mem_written_only(self.source.as_ptr(), self.index) != 0 }
     }
 
     pub fn index_reg(&self) -> Option<XedReg> {
         unsafe {
-            Self::return_reg(xed_sys::xed_decoded_inst_get_index_reg(self.source.as_ptr(), self.index))
+            Self::return_reg(xed_sys::xed_decoded_inst_get_index_reg(
+                self.source.as_ptr(),
+                self.index,
+            ))
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{Xed, MachineMode, AddressWidth};
+    use crate::{AddressWidth, MachineMode, Xed};
 
     #[test]
     pub fn imm_operands() {
         let xed = Xed::new(MachineMode::Long64, AddressWidth::Width64b);
-        let instr = xed.decode(&[ 0x48, 0xC1, 0xE0, 0x03 ]).unwrap();
+        let instr = xed.decode(&[0x48, 0xC1, 0xE0, 0x03]).unwrap();
         let _op = instr.operands().get(1).unwrap();
-        
     }
 }

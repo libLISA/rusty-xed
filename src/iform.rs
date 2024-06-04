@@ -1,5 +1,5 @@
+use xed_sys::XED_IFORM_AAM_IMMb;
 use xed_sys::*;
-use xed_sys::{XED_IFORM_AAM_IMMb};
 
 // Taken from ./obj/xed-iform-enum.h
 crate::enum_impl! {

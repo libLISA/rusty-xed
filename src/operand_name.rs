@@ -3,7 +3,7 @@ use xed_sys::*;
 // Taken from ./obj/xed-operand-enum.h
 crate::enum_impl! {
     enum OperandName
-    {  
+    {
         XED_OPERAND_AGEN => Agen,
         XED_OPERAND_AMD3DNOW => Amd3Dnow,
         XED_OPERAND_ASZ => Asz,
@@ -126,6 +126,6 @@ crate::enum_impl! {
         XED_OPERAND_VEX_PREFIX => VexPrefix,
         XED_OPERAND_VL => Vl,
         XED_OPERAND_WBNOINVD => Wbnoinvd,
-        XED_OPERAND_ZEROING => Zeroing,      
+        XED_OPERAND_ZEROING => Zeroing,
     }
 }
