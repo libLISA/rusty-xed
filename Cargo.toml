@@ -2,7 +2,7 @@
 name = "rusty-xed"
 authors = [ "Jos <jos@liblisa.nl>" ]
 description = "High-level, safe, bindings for XED"
-repository = ""
+repository = "https://github.com/libLISA/rusty-xed"
 license = "MIT"
 version = "0.1.0"
 edition = "2021"
