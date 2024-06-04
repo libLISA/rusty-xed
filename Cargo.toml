@@ -1,0 +1,11 @@
+[package]
+name = "rusty-xed"
+authors = [ "Jos <jos@liblisa.nl>" ]
+description = "High-level, safe, bindings for XED"
+repository = ""
+license = "MIT"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+xed-sys = "0.5"
