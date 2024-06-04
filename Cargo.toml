@@ -6,6 +6,10 @@ repository = ""
 license = "MIT"
 version = "0.1.0"
 edition = "2021"
+exclude = [
+    ".github",
+    ".gitignore",
+]
 
 [dependencies]
 xed-sys = "0.5"
