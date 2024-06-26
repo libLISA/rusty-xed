@@ -12,4 +12,5 @@ exclude = [
 ]
 
 [dependencies]
+const_panic = "0.2.8"
 xed-sys = "0.5"

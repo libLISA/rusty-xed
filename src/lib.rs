@@ -17,7 +17,25 @@ pub use reg::XedReg;
 
 #[macro_export]
 macro_rules! enum_impl {
-    (enum $name:ident { $($original_name:ident => $new_name:ident),* $(,)* }) => {
+    (#[range($from:expr, $to:expr)] enum $name:ident { $($original_name:ident => $new_name:ident),* $(,)* }) => {
+        const _RANGE_TEST: () = {
+            let from = $from;
+            let to = $to;
+            let mut seen = [false; $to as usize];
+
+            $(seen[$original_name as usize] = true;)*
+
+            let mut n = from;
+            while n < to {
+                const_panic::concat_assert!{
+                    seen[n as usize],
+                    "Item missing: ", n
+                };
+
+                n += 1;
+            }
+        };
+
         #[allow(non_camel_case_types)]
         #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
         pub enum $name {
@@ -403,5 +421,13 @@ mod tests {
         let xed = Xed::new(MachineMode::Long64, AddressWidth::Width64b);
         let instr = xed.decode(&[0x48, 0xC1, 0xE0, 0x03]).unwrap();
         let _op = instr.operands().get(1).unwrap();
+    }
+
+    #[test]
+    pub fn iclass_valid() {
+        let xed = Xed::new(MachineMode::Long64, AddressWidth::Width64b);
+        let instr = xed.decode(&[0x40, 0x0F, 0x18, 0x32]).unwrap();
+
+        instr.iclass();
     }
 }

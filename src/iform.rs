@@ -3,6 +3,7 @@ use xed_sys::*;
 
 // Taken from ./obj/xed-iform-enum.h
 crate::enum_impl! {
+    #[range(XED_IFORM_AAA, XED_IFORM_LAST)]
     enum XedIForm
     {
         XED_IFORM_AAA => AAA,
