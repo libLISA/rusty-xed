@@ -1,8 +1,9 @@
-use std::sync::Mutex;
+use std::{ffi::CStr, fmt::Display, sync::Mutex};
 use xed_sys::{
     xed_decoded_inst_get_iclass, xed_decoded_inst_get_second_immediate,
     xed_decoded_inst_get_signed_immediate, xed_decoded_inst_get_unsigned_immediate,
-    xed_decoded_inst_inst, xed_inst_iform_enum,
+    xed_decoded_inst_inst, xed_format_context, xed_inst_iform_enum, XED_SYNTAX_ATT,
+    XED_SYNTAX_INTEL, XED_SYNTAX_XED,
 };
 
 mod iclass;
@@ -156,11 +157,11 @@ impl Xed {
 pub struct DecodedInstr(xed_sys::xed_decoded_inst_s);
 
 impl DecodedInstr {
-    pub fn operands(&self) -> Operands {
+    pub fn operands(&self) -> Operands<'_> {
         Operands(self)
     }
 
-    pub fn memory_accesses(&self) -> MemoryAccesses {
+    pub fn memory_accesses(&self) -> MemoryAccesses<'_> {
         MemoryAccesses(self)
     }
 
@@ -185,6 +186,64 @@ impl DecodedInstr {
 
     fn as_inst(&self) -> *const xed_sys::xed_inst_s {
         unsafe { xed_decoded_inst_inst(self.as_ptr()) }
+    }
+
+    pub fn display(
+        &self,
+        syntax: XedSyntax,
+        runtime_instruction_address: u64,
+    ) -> impl Display + use<'_> {
+        DisplayDecodedInstr {
+            syntax,
+            instr: self,
+            runtime_instruction_address,
+        }
+    }
+}
+
+impl Display for DecodedInstr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.display(XedSyntax::Intel, 0), f)
+    }
+}
+
+pub enum XedSyntax {
+    Intel,
+    Att,
+    Xed,
+}
+
+struct DisplayDecodedInstr<'a> {
+    syntax: XedSyntax,
+    instr: &'a DecodedInstr,
+    runtime_instruction_address: u64,
+}
+
+impl Display for DisplayDecodedInstr<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut buf = [0u8; 256];
+        unsafe {
+            xed_format_context(
+                match self.syntax {
+                    XedSyntax::Intel => XED_SYNTAX_INTEL,
+                    XedSyntax::Att => XED_SYNTAX_ATT,
+                    XedSyntax::Xed => XED_SYNTAX_XED,
+                },
+                self.instr.as_ptr(),
+                buf.as_mut_ptr() as *mut i8,
+                buf.len() as i32 - 1,
+                self.runtime_instruction_address,
+                std::ptr::null_mut(),
+                None,
+            );
+        }
+
+        f.write_str(
+            CStr::from_bytes_until_nul(&buf)
+                .expect("xed should not overwrite last byte")
+                .to_str()
+                .expect("xed_decoded_inst_dump should return valid UTF-8"),
+        )
     }
 }
 
@@ -429,5 +488,13 @@ mod tests {
         let instr = xed.decode(&[0x40, 0x0F, 0x18, 0x32]).unwrap();
 
         instr.iclass();
+    }
+
+    #[test]
+    pub fn display() {
+        let xed = Xed::new(MachineMode::Long64, AddressWidth::Width64b);
+        let instr = xed.decode(&[0x00, 0xd3]).unwrap();
+
+        assert_eq!(instr.to_string(), "add bl, dl");
     }
 }
